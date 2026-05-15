@@ -1,3 +1,4 @@
 /t-f
+t-f
 *.json
 !testdata/*.json
