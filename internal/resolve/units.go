@@ -7,7 +7,7 @@ import (
 )
 
 var remRe = regexp.MustCompile(`([0-9.]+)\s*rem\b`)
-var dimensionRe = regexp.MustCompile(`^([0-9.]+)\s*(.+)$`)
+var dimensionRe = regexp.MustCompile(`^([0-9.]+)\s*(.*)$`)
 
 const RemBase = 16.0
 

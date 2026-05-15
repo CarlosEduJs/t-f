@@ -1,6 +1,7 @@
 package cssreader
 
 import (
+	"bytes"
 	"io"
 	"strings"
 
@@ -12,10 +13,15 @@ import (
 
 type Parser struct {
 	input *parse.Input
+	raw   []byte
 }
 
 func New(r io.Reader) *Parser {
-	return &Parser{input: parse.NewInput(r)}
+	raw, _ := io.ReadAll(r)
+	return &Parser{
+		input: parse.NewInput(bytes.NewReader(raw)),
+		raw:   raw,
+	}
 }
 
 func (p *Parser) Parse() ([]domain.Variable, error) {
@@ -23,10 +29,9 @@ func (p *Parser) Parse() ([]domain.Variable, error) {
 
 	var vars []domain.Variable
 	var stack []string
-	var inTheme bool
 
 	for {
-		gt, tt, data := parser.Next()
+		gt, _, data := parser.Next()
 		if gt == css.ErrorGrammar {
 			break
 		}
@@ -41,19 +46,6 @@ func (p *Parser) Parse() ([]domain.Variable, error) {
 				stack = stack[:len(stack)-1]
 			}
 
-		case css.BeginAtRuleGrammar:
-			if isThemeAtRule(tt, data) {
-				inTheme = true
-			}
-
-		case css.EndAtRuleGrammar:
-			inTheme = false
-
-		case css.AtRuleGrammar:
-			if isThemeAtRule(tt, data) {
-				vars = append(vars, extractInlineVars(parser.Values(), domain.ThemeTheme)...)
-			}
-
 		case css.CustomPropertyGrammar:
 			name := string(data)
 			vals := parser.Values()
@@ -63,7 +55,7 @@ func (p *Parser) Parse() ([]domain.Variable, error) {
 			}
 			rawValue = strings.TrimSpace(rawValue)
 
-			theme := detectTheme(stack, inTheme)
+			theme := detectTheme(stack)
 			vars = append(vars, domain.Variable{
 				Name:  name,
 				Value: rawValue,
@@ -76,6 +68,10 @@ func (p *Parser) Parse() ([]domain.Variable, error) {
 	if err := parser.Err(); err != nil && err != io.EOF {
 		return vars, err
 	}
+
+	themeVars := p.extractThemeBlock()
+	vars = append(vars, themeVars...)
+
 	return vars, nil
 }
 
@@ -95,10 +91,7 @@ func isThemeAtRule(tt css.TokenType, data []byte) bool {
 	return tt == css.AtKeywordToken && string(data) == "@theme"
 }
 
-func detectTheme(stack []string, inTheme bool) domain.Theme {
-	if inTheme {
-		return domain.ThemeTheme
-	}
+func detectTheme(stack []string) domain.Theme {
 	for _, s := range stack {
 		lower := strings.ToLower(s)
 		if strings.Contains(lower, ":root") {
@@ -111,18 +104,64 @@ func detectTheme(stack []string, inTheme bool) domain.Theme {
 	return domain.ThemeLight
 }
 
-func extractInlineVars(tokens []css.Token, theme domain.Theme) []domain.Variable {
+func (p *Parser) extractThemeBlock() []domain.Variable {
+	text := string(p.raw)
 	var vars []domain.Variable
-	for _, t := range tokens {
-		if t.TokenType == css.CustomPropertyNameToken {
-			name := string(t.Data)
+
+	for {
+		start := strings.Index(text, "@theme")
+		if start == -1 {
+			break
+		}
+
+		braceStart := strings.IndexByte(text[start:], '{')
+		if braceStart == -1 {
+			break
+		}
+		braceStart += start
+
+		depth := 1
+		pos := braceStart + 1
+		for pos < len(text) && depth > 0 {
+			switch text[pos] {
+			case '{':
+				depth++
+			case '}':
+				depth--
+			}
+			pos++
+		}
+
+		if depth != 0 {
+			break
+		}
+
+		block := text[braceStart+1 : pos-1]
+		lines := strings.Split(block, ";")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			idx := strings.IndexByte(line, ':')
+			if idx == -1 {
+				continue
+			}
+			name := strings.TrimSpace(line[:idx])
+			value := strings.TrimSpace(line[idx+1:])
+			if !strings.HasPrefix(name, "--") {
+				continue
+			}
 			vars = append(vars, domain.Variable{
 				Name:  name,
-				Value: "",
-				Theme: theme,
-				Raw:   "",
+				Value: value,
+				Theme: domain.ThemeTheme,
+				Raw:   value,
 			})
 		}
+
+		text = text[pos:]
 	}
+
 	return vars
 }

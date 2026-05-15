@@ -19,7 +19,6 @@ func NewGenerator() *Generator {
 func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 	themed := splitByTheme(vars)
 	resolved := resolveAll(themed)
-	resolved = convertRem(resolved, g.RemBase)
 
 	groups := categorizeAndGroup(resolved)
 	output := domain.DesignTokens{
@@ -68,23 +67,26 @@ func splitByTheme(vars []domain.Variable) map[string]map[string]string {
 func resolveAll(themed map[string]map[string]string) map[string]map[string]string {
 	result := make(map[string]map[string]string)
 
-	combined := make(map[string]string)
-	for k, v := range themed["light"] {
-		combined[k] = v
-	}
-	for k, v := range themed["theme"] {
-		combined[k] = v
-	}
-	for k, v := range themed["dark"] {
-		combined[k] = v
-	}
-
 	for theme, vars := range themed {
+		scope := make(map[string]string)
+		for k, v := range themed["light"] {
+			scope[k] = v
+		}
+		for k, v := range themed["theme"] {
+			scope[k] = v
+		}
+		if theme == "dark" {
+			for k, v := range themed["dark"] {
+				scope[k] = v
+			}
+		}
+
 		resolved := make(map[string]string)
 
 		for k, v := range vars {
-			aliased := resolveAlias(k, v, combined)
-			calcResolved := evalCalc(aliased)
+			aliased := resolveAlias(k, v, scope)
+			remmed := remToPx(aliased, 16)
+			calcResolved := evalCalc(remmed)
 			resolved[k] = calcResolved
 		}
 
@@ -160,11 +162,18 @@ func evalCalc(value string) string {
 			_ = bUnit
 
 			var result float64
+			unit := bUnit
+			if unit == "" {
+				unit = aUnit
+			}
+
 			switch op {
 			case "+":
 				result = toPxNum(a, aUnit) + toPxNum(b, bUnit)
+				unit = chooseUnit(aUnit, bUnit)
 			case "-":
 				result = toPxNum(a, aUnit) - toPxNum(b, bUnit)
+				unit = chooseUnit(aUnit, bUnit)
 			case "*":
 				result = a * b
 			case "/":
@@ -173,8 +182,8 @@ func evalCalc(value string) string {
 				}
 			}
 
-			unit := aUnit
 			if unit == "rem" {
+				result *= 16
 				unit = "px"
 			}
 			current = current[:start] + fmt.Sprintf("%.0f%s", result, unit) + current[pos:]
@@ -198,6 +207,19 @@ func evalCalc(value string) string {
 	}
 
 	return current
+}
+
+func chooseUnit(a, b string) string {
+	if a == b {
+		return a
+	}
+	if a == "" {
+		return b
+	}
+	if b == "" {
+		return a
+	}
+	return a
 }
 
 func splitNumber(s string) (float64, string) {
@@ -225,18 +247,6 @@ func toPxNum(v float64, unit string) float64 {
 		return v * 16
 	}
 	return v
-}
-
-func convertRem(themed map[string]map[string]string, base float64) map[string]map[string]string {
-	result := make(map[string]map[string]string)
-	for theme, vars := range themed {
-		m := make(map[string]string)
-		for k, v := range vars {
-			m[k] = remToPx(v, base)
-		}
-		result[theme] = m
-	}
-	return result
 }
 
 func remToPx(value string, base float64) string {
@@ -349,16 +359,16 @@ func buildTypographyToken(tree domain.DTCGGroup, name string, props map[string]s
 
 func toProp(s string) string {
 	switch s {
-	case "family":
-		return "fontFamily"
-	case "size":
-		return "fontSize"
-	case "weight":
-		return "fontWeight"
-	case "height":
-		return "lineHeight"
-	case "spacing":
-		return "letterSpacing"
+	case "fontFamily":
+		return "family"
+	case "fontSize":
+		return "size"
+	case "fontWeight":
+		return "weight"
+	case "lineHeight":
+		return "height"
+	case "letterSpacing":
+		return "spacing"
 	}
 	return s
 }
