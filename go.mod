@@ -1,0 +1,3 @@
+module t-f
+
+go 1.26.1
