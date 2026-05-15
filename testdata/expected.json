@@ -78,11 +78,13 @@
         "$value": "oklch(0.6 0.15 240)"
       },
       "primary": {
-        "$type": "color",
-        "$value": "oklch(0.5 0.2 240)",
-        "dark": {
+        "base": {
           "$type": "color",
-          "$value": "oklch(0.65 0.22 240)"
+          "$value": "oklch(0.5 0.2 240)",
+          "dark": {
+            "$type": "color",
+            "$value": "oklch(0.65 0.22 240)"
+          }
         },
         "hover": {
           "$type": "color",
@@ -110,11 +112,13 @@
         "$value": "oklch(0.98 0 0)"
       },
       "text": {
-        "$type": "color",
-        "$value": "oklch(0.15 0.02 260)",
-        "dark": {
+        "base": {
           "$type": "color",
-          "$value": "oklch(0.92 0.01 260)"
+          "$value": "oklch(0.15 0.02 260)",
+          "dark": {
+            "$type": "color",
+            "$value": "oklch(0.92 0.01 260)"
+          }
         },
         "muted": {
           "$type": "color",

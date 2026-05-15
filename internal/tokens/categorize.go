@@ -108,7 +108,62 @@ func insertIntoTree(group domain.DTCGGroup, parts []string, e tokenEntry) {
 		group[parts[0]] = sub
 	}
 	subGroup := sub.(domain.DTCGGroup)
+
+	if _, hasValue := subGroup["$value"]; hasValue {
+		base := make(domain.DTCGGroup)
+		for k, v := range subGroup {
+			base[k] = v
+		}
+		for k := range subGroup {
+			delete(subGroup, k)
+		}
+		subGroup["base"] = base
+	}
+
 	insertIntoTree(subGroup, parts[1:], e)
+}
+
+func flattenTree(entries []tokenEntry) interface{} {
+	root := make(domain.DTCGGroup)
+	for _, e := range entries {
+		name := e.name
+		hasDark := e.darkVal != "" && e.darkVal != e.lightVal
+
+		leaf := make(domain.DTCGGroup)
+		leaf["$value"] = e.lightVal
+		leaf["$type"] = e.tokenType
+		root[name] = leaf
+
+		if hasDark {
+			darkLeaf := make(domain.DTCGGroup)
+			darkLeaf["$value"] = e.darkVal
+			darkLeaf["$type"] = e.tokenType
+			root[name+"-dark"] = darkLeaf
+		}
+	}
+	return root
+}
+
+func anyLeaf(entries []tokenEntry) bool {
+	for _, e := range entries {
+		if strings.Contains(e.name, "-") {
+			return true
+		}
+	}
+	return false
+}
+
+func hasMixedLeafGroup(group domain.DTCGGroup) bool {
+	hasLeaf := false
+	hasChild := false
+	for k := range group {
+		if k == "$value" || k == "$type" || k == "$description" {
+			hasLeaf = true
+		} else if k != "dark" {
+			hasChild = true
+		}
+	}
+	return hasLeaf && hasChild
 }
 
 func buildLeaf(e tokenEntry) domain.DTCGGroup {

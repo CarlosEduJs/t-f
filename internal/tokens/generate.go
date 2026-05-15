@@ -36,7 +36,11 @@ func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 		if category == "other" {
 			continue
 		}
-		output.Semantic[category] = buildTree(entries)
+		if g.FigmaMode {
+			output.Semantic[category] = flattenTree(entries)
+		} else {
+			output.Semantic[category] = buildTree(entries)
+		}
 	}
 
 	if len(typographyGroups) > 0 {
