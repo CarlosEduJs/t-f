@@ -145,8 +145,6 @@ func flattenTree(entries []tokenEntry) domain.DTCGGroup {
 	return root
 }
 
-
-
 func buildLeaf(e tokenEntry) domain.DTCGGroup {
 	leaf := make(domain.DTCGGroup)
 

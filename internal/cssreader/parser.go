@@ -100,8 +100,6 @@ func selectorString(tokens []css.Token) string {
 	return strings.TrimSpace(b.String())
 }
 
-
-
 func detectTheme(stack []string) domain.Theme {
 	for _, s := range stack {
 		lower := strings.ToLower(s)

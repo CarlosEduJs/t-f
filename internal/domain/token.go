@@ -21,8 +21,8 @@ const (
 
 // DTCGToken is a single DTCG-format design token.
 type DTCGToken struct {
-	Value      any       `json:"$value"`
-	Type       TokenType `json:"$type"`
+	Value       any       `json:"$value"`
+	Type        TokenType `json:"$type"`
 	Description string    `json:"$description,omitempty"`
 }
 

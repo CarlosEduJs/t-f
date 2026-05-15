@@ -15,6 +15,9 @@ lint:
 test:
 	go test ./...
 
+format:
+	go fmt ./...
+
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
