@@ -72,6 +72,24 @@ func matchPrefix(name, prefix string) bool {
 	return false
 }
 
+func CategorizeByValue(value string) (category string, tokenType TokenType) {
+	if IsColorValue(value) {
+		return "color", TypeColor
+	}
+	if IsDimensionValue(value) {
+		return "spacing", TypeDimension
+	}
+	return "other", TypeString
+}
+
+func InferCategory(name, value string) (category string, tokenType TokenType) {
+	cat, ttype := Categorize(name)
+	if cat != "other" {
+		return cat, ttype
+	}
+	return CategorizeByValue(value)
+}
+
 func TokenName(varName string) string {
 	cleaned := varName
 	if len(cleaned) > 0 && cleaned[0] == '-' {

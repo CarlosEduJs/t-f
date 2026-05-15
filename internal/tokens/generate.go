@@ -9,7 +9,8 @@ import (
 )
 
 type Generator struct {
-	RemBase float64
+	RemBase  float64
+	FigmaMode bool
 }
 
 func NewGenerator() *Generator {
@@ -32,6 +33,9 @@ func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 			collectTypography(entries, typographyGroups)
 			continue
 		}
+		if category == "other" {
+			continue
+		}
 		output.Semantic[category] = buildTree(entries)
 	}
 
@@ -43,7 +47,33 @@ func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 		output.Semantic["typography"] = typoTree
 	}
 
+	if g.FigmaMode {
+		convertToFigma(output.Semantic)
+	}
+
 	return json.MarshalIndent(output, "", "  ")
+}
+
+func convertToFigma(semantic map[string]interface{}) {
+	colors, ok := semantic["color"].(domain.DTCGGroup)
+	if !ok {
+		return
+	}
+	convertNode(colors)
+}
+
+func convertNode(node domain.DTCGGroup) {
+	for key, val := range node {
+		if key == "$value" {
+			if str, ok := val.(string); ok && domain.IsColorValue(str) {
+				node[key] = domain.ConvertColorToHEX(str)
+			}
+		} else if key == "$type" {
+			continue
+		} else if sub, ok := val.(domain.DTCGGroup); ok {
+			convertNode(sub)
+		}
+	}
 }
 
 func splitByTheme(vars []domain.Variable) map[string]map[string]string {

@@ -42,7 +42,12 @@ func categorizeAndGroup(vars map[string]map[string]string) map[string][]tokenEnt
 			lv = themeMap[key]
 		}
 
-		category, ttype := domain.Categorize(key)
+		resolvedVal := lv
+		if resolvedVal == "" {
+			resolvedVal = dv
+		}
+
+		category, ttype := domain.InferCategory(key, resolvedVal)
 		tn := tokenName(key)
 
 		groups[category] = append(groups[category], tokenEntry{

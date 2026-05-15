@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 
@@ -10,13 +11,16 @@ import (
 )
 
 func main() {
-	if len(os.Args) < 3 {
-		fmt.Fprintf(os.Stderr, "Usage: t-f input.css output.json\n")
+	figmaMode := flag.Bool("figma", false, "convert OKLCH colors to HEX for Figma compatibility")
+	flag.Parse()
+
+	if flag.NArg() < 2 {
+		fmt.Fprintf(os.Stderr, "Usage: t-f [--figma] input.css output.json\n")
 		os.Exit(1)
 	}
 
-	inputPath := os.Args[1]
-	outputPath := os.Args[2]
+	inputPath := flag.Arg(0)
+	outputPath := flag.Arg(1)
 
 	f, err := os.Open(inputPath)
 	if err != nil {
@@ -33,6 +37,8 @@ func main() {
 	}
 
 	gen := tokens.NewGenerator()
+	gen.FigmaMode = *figmaMode
+
 	data, err := gen.Generate(vars)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error generating tokens: %v\n", err)
