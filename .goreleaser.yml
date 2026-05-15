@@ -26,12 +26,17 @@ archives:
   - id: default
     format: tar.gz
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+      - CONTRIBUTING.md
     format_overrides:
       - goos: windows
         format: zip
 
 checksum:
-  disable: false
+  name_template: 'checksums.txt'
+  algorithm: sha256
 
 snapshot:
   name_template: "{{ .Tag }}-next"
@@ -44,3 +49,7 @@ changelog:
       - "^test:"
       - "^chore:"
       - "^ci:"
+      - "^style:"
+      - "^refactor:"
+      - "Merge branch"
+      - "Merge pull request"
