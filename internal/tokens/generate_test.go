@@ -37,6 +37,15 @@ func keysOf(m map[string]interface{}) []string {
 	return ks
 }
 
+func getHex(val interface{}) string {
+	m, ok := val.(map[string]interface{})
+	if !ok {
+		return ""
+	}
+	h, _ := m["hex"].(string)
+	return h
+}
+
 func TestCategorize(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -240,9 +249,9 @@ func TestFigmaMode(t *testing.T) {
 		if len(token) != 2 {
 			t.Errorf("figma token %q should have exactly 2 keys ($type, $value), got %v", name, keysOf(token))
 		}
-		val := token["$value"].(string)
-		if len(val) < 1 || val[0] != '#' {
-			t.Errorf("figma mode: expected HEX value for %s, got %q", name, val)
+		hex := getHex(token["$value"])
+		if hex == "" {
+			t.Errorf("figma mode: expected structured color value for %s, got %T=%v", name, token["$value"], token["$value"])
 		}
 		if token["$type"] != "color" {
 			t.Errorf("figma mode: expected color type for %s", name)
@@ -367,7 +376,7 @@ func TestFigmaDarkTokenFlattening(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		wantVal  string
+		wantHex  string
 		wantType string
 	}{
 		{"primary", "#0069c7", "color"},
@@ -384,8 +393,61 @@ func TestFigmaDarkTokenFlattening(t *testing.T) {
 		if token["$type"] != tt.wantType {
 			t.Errorf("%s $type = %q, want %q", tt.name, token["$type"], tt.wantType)
 		}
-		if token["$value"] != tt.wantVal {
-			t.Errorf("%s $value = %q, want %q", tt.name, token["$value"], tt.wantVal)
+		gotHex := getHex(token["$value"])
+		if gotHex != tt.wantHex {
+			t.Errorf("%s hex = %q, want %q", tt.name, gotHex, tt.wantHex)
 		}
+	}
+}
+
+func TestFigmaStructuredValues(t *testing.T) {
+	vars := []domain.Variable{
+		{Name: "--color-primary", Value: "oklch(0.5 0.2 240)", Theme: domain.ThemeLight},
+		{Name: "--radius-md", Value: "12px", Theme: domain.ThemeLight},
+	}
+	gen := NewGenerator()
+	gen.FigmaMode = true
+	data, err := gen.Generate(vars)
+	if err != nil {
+		t.Fatalf("Generate error: %v", err)
+	}
+
+	var result map[string]interface{}
+	json.Unmarshal(data, &result)
+	semantic := result["semantic"].(map[string]interface{})
+
+	colors := semantic["color"].(map[string]interface{})
+	primary := colors["primary"].(map[string]interface{})
+	cv := primary["$value"].(map[string]interface{})
+
+	if cv["colorSpace"] != "srgb" {
+		t.Errorf("expected colorSpace=srgb, got %q", cv["colorSpace"])
+	}
+	comps, ok := cv["components"].([]interface{})
+	if !ok || len(comps) != 3 {
+		t.Errorf("expected 3 components, got %v", comps)
+	} else {
+		for i, c := range comps {
+			v, _ := c.(float64)
+			if v < 0 || v > 1 {
+				t.Errorf("component %d out of range [0,1]: %f", i, v)
+			}
+		}
+	}
+	if cv["hex"] != "#0069c7" {
+		t.Errorf("expected hex #0069c7, got %q", cv["hex"])
+	}
+
+	borders := semantic["borderRadius"].(map[string]interface{})
+	md := borders["md"].(map[string]interface{})
+	dv := md["$value"].(map[string]interface{})
+
+	val, _ := dv["value"].(float64)
+	if val != 12 {
+		t.Errorf("expected dimension value 12, got %f", val)
+	}
+	unit, _ := dv["unit"].(string)
+	if unit != "px" {
+		t.Errorf("expected dimension unit px, got %q", unit)
 	}
 }

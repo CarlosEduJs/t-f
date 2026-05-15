@@ -59,20 +59,42 @@ func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 }
 
 func convertToFigma(semantic map[string]interface{}) {
-	colors, ok := semantic["color"].(domain.DTCGGroup)
-	if !ok {
-		return
+	for _, node := range semantic {
+		if group, ok := node.(domain.DTCGGroup); ok {
+			convertNode(group)
+		}
 	}
-	convertNode(colors)
 }
 
 func convertNode(node domain.DTCGGroup) {
+	ttype, _ := node["$type"].(domain.TokenType)
+
 	for key, val := range node {
 		if key == "$value" {
-			if str, ok := val.(string); ok && domain.IsColorValue(str) {
-				node[key] = domain.ConvertColorToHEX(str)
+			str, ok := val.(string)
+			if !ok {
+				continue
 			}
-		} else if key == "$type" {
+			switch ttype {
+			case domain.TypeColor:
+				hex := domain.ConvertColorToHEX(str)
+				comps := domain.HexToComponents(hex)
+				node[key] = map[string]interface{}{
+					"colorSpace": "srgb",
+					"components": comps,
+					"hex":        hex,
+				}
+			case domain.TypeDimension:
+				v, unit := domain.ParseDimension(str)
+				if unit == "" {
+					unit = "px"
+				}
+				node[key] = map[string]interface{}{
+					"value": v,
+					"unit":  unit,
+				}
+			}
+		} else if key == "$type" || key == "$description" {
 			continue
 		} else if sub, ok := val.(domain.DTCGGroup); ok {
 			convertNode(sub)

@@ -137,3 +137,48 @@ func ConvertColorToHEX(value string) string {
 	}
 	return c.ToHEX()
 }
+
+func HexToComponents(hex string) []float64 {
+	hex = strings.TrimPrefix(hex, "#")
+	if len(hex) == 3 {
+		r, _ := strconv.ParseInt(string(hex[0])+string(hex[0]), 16, 64)
+		g, _ := strconv.ParseInt(string(hex[1])+string(hex[1]), 16, 64)
+		b, _ := strconv.ParseInt(string(hex[2])+string(hex[2]), 16, 64)
+		return roundComponents([]float64{float64(r) / 255, float64(g) / 255, float64(b) / 255})
+	}
+	if len(hex) >= 6 {
+		r, _ := strconv.ParseInt(hex[0:2], 16, 64)
+		g, _ := strconv.ParseInt(hex[2:4], 16, 64)
+		b, _ := strconv.ParseInt(hex[4:6], 16, 64)
+		return roundComponents([]float64{float64(r) / 255, float64(g) / 255, float64(b) / 255})
+	}
+	return []float64{0, 0, 0}
+}
+
+func roundComponents(comps []float64) []float64 {
+	for i, v := range comps {
+		comps[i] = math.Round(v*1e6) / 1e6
+	}
+	return comps
+}
+
+func ParseDimension(s string) (float64, string) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, ""
+	}
+	for i, c := range s {
+		if (c < '0' || c > '9') && c != '.' && c != '-' && c != '+' {
+			v, err := strconv.ParseFloat(s[:i], 64)
+			if err != nil {
+				return 0, s[i:]
+			}
+			return v, s[i:]
+		}
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, ""
+	}
+	return v, ""
+}
