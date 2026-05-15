@@ -1,0 +1,39 @@
+version: "2"
+
+run:
+  timeout: 3m
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - errcheck
+    - ineffassign
+    - revive
+    - unused
+  settings:
+    errcheck:
+      # Don't flag fmt.Fprintf to stderr (CLI output)
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Printf
+    revive:
+      rules:
+        - name: blank-imports
+        - name: exported
+          arguments:
+            - "checkPrivateReceivers"
+        - name: package-comments
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    rules:
+      # package main doesn't need a doc comment
+      - path: cmd/
+        linters:
+          - revive
+        text: "package-comments"
+    paths:
+      - testdata

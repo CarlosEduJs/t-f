@@ -1,3 +1,5 @@
+// Package domain defines the core types and logic for CSS-to-design-token
+// conversion, including color parsing, token categorization, and theming.
 package domain
 
 import (
@@ -7,10 +9,13 @@ import (
 	"strings"
 )
 
+// OKLCHColor represents a color in the OKLCH color space.
 type OKLCHColor struct {
 	L, C, H, Alpha float64
 }
 
+// ParseOKLCH parses an "oklch(...)" CSS function into an OKLCHColor.
+// Returns false if the string is not a valid OKLCH expression.
 func ParseOKLCH(s string) (*OKLCHColor, bool) {
 	s = strings.TrimSpace(s)
 	if !strings.HasPrefix(s, "oklch(") || !strings.HasSuffix(s, ")") {
@@ -49,30 +54,30 @@ func ParseOKLCH(s string) (*OKLCHColor, bool) {
 	return &OKLCHColor{L: L, C: C, H: H, Alpha: alpha}, true
 }
 
+// ToHEX converts an OKLCH color to a hex string (#rrggbb or #rrggbbaa).
 func (c *OKLCHColor) ToHEX() string {
 	hRad := c.H * math.Pi / 180
 	a := c.C * math.Cos(hRad)
 	b := c.C * math.Sin(hRad)
 
-	l_ := c.L + 0.3963377774*a + 0.2158037573*b
-	m_ := c.L - 0.1055613458*a - 0.0638541728*b
-	s_ := c.L - 0.0894841775*a - 1.2914855480*b
+	// OKLab to approximate LMS (cube-root domain)
+	lCR := c.L + 0.3963377774*a + 0.2158037573*b
+	mCR := c.L - 0.1055613458*a - 0.0638541728*b
+	sCR := c.L - 0.0894841775*a - 1.2914855480*b
 
-	l := l_ * l_ * l_
-	m := m_ * m_ * m_
-	s := s_ * s_ * s_
+	// LMS cube-root to linear
+	l := lCR * lCR * lCR
+	m := mCR * mCR * mCR
+	s := sCR * sCR * sCR
 
+	// Linear LMS to linear sRGB
 	rLin := 4.0767416621*l - 3.3077115913*m + 0.2309699292*s
 	gLin := -1.2684380046*l + 2.6097574011*m - 0.3413193965*s
 	bLin := -0.0041960863*l - 0.7034186147*m + 1.7076147010*s
 
-	r := linearToSRGB(rLin)
-	g := linearToSRGB(gLin)
-	bv := linearToSRGB(bLin)
-
-	r = clampU8(r)
-	g = clampU8(g)
-	bv = clampU8(bv)
+	r := clampU8(linearToSRGB(rLin))
+	g := clampU8(linearToSRGB(gLin))
+	bv := clampU8(linearToSRGB(bLin))
 
 	ri := int(math.Round(r * 255))
 	gi := int(math.Round(g * 255))
@@ -102,6 +107,8 @@ func clampU8(v float64) float64 {
 	return v
 }
 
+// IsColorValue reports whether the CSS value looks like a color
+// (hex, oklch, rgb, rgba, hsl, hsla).
 func IsColorValue(value string) bool {
 	v := strings.TrimSpace(value)
 	if strings.HasPrefix(v, "#") {
@@ -115,6 +122,8 @@ func IsColorValue(value string) bool {
 	return false
 }
 
+// IsDimensionValue reports whether the CSS value looks like a dimension
+// (calc, px, rem, em).
 func IsDimensionValue(value string) bool {
 	v := strings.TrimSpace(value)
 	if strings.HasPrefix(v, "calc(") {
@@ -127,17 +136,17 @@ func IsDimensionValue(value string) bool {
 	return false
 }
 
+// ConvertColorToHEX converts an OKLCH color string to HEX.
+// Non-OKLCH values (hex, rgb, etc.) are returned unchanged.
 func ConvertColorToHEX(value string) string {
 	c, ok := ParseOKLCH(value)
 	if !ok {
-		if strings.HasPrefix(value, "#") {
-			return value
-		}
 		return value
 	}
 	return c.ToHEX()
 }
 
+// HexToComponents splits a hex color into normalized [0,1] RGB components.
 func HexToComponents(hex string) []float64 {
 	hex = strings.TrimPrefix(hex, "#")
 	if len(hex) == 3 {
@@ -162,6 +171,7 @@ func roundComponents(comps []float64) []float64 {
 	return comps
 }
 
+// ParseDimension splits a CSS dimension string into its numeric value and unit.
 func ParseDimension(s string) (float64, string) {
 	s = strings.TrimSpace(s)
 	if s == "" {

@@ -1,7 +1,10 @@
+// Package cssreader extracts CSS custom properties from stylesheets,
+// detecting :root (light), .dark, and @theme scopes.
 package cssreader
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"strings"
 
@@ -11,20 +14,30 @@ import (
 	"t-f/internal/domain"
 )
 
+// Parser reads CSS custom properties from a stream.
 type Parser struct {
-	input *parse.Input
-	raw   []byte
+	input   *parse.Input
+	raw     []byte
+	readErr error
 }
 
+// New creates a Parser that will consume the entire reader.
+// Any read error is deferred until Parse() is called.
 func New(r io.Reader) *Parser {
-	raw, _ := io.ReadAll(r)
+	raw, err := io.ReadAll(r)
 	return &Parser{
-		input: parse.NewInput(bytes.NewReader(raw)),
-		raw:   raw,
+		input:   parse.NewInput(bytes.NewReader(raw)),
+		raw:     raw,
+		readErr: err,
 	}
 }
 
+// Parse extracts CSS custom properties grouped by theme.
 func (p *Parser) Parse() ([]domain.Variable, error) {
+	if p.readErr != nil {
+		return nil, fmt.Errorf("reading CSS input: %w", p.readErr)
+	}
+
 	parser := css.NewParser(p.input, false)
 
 	var vars []domain.Variable
@@ -66,7 +79,7 @@ func (p *Parser) Parse() ([]domain.Variable, error) {
 	}
 
 	if err := parser.Err(); err != nil && err != io.EOF {
-		return vars, err
+		return vars, fmt.Errorf("parsing CSS: %w", err)
 	}
 
 	themeVars := p.extractThemeBlock()
@@ -87,9 +100,7 @@ func selectorString(tokens []css.Token) string {
 	return strings.TrimSpace(b.String())
 }
 
-func isThemeAtRule(tt css.TokenType, data []byte) bool {
-	return tt == css.AtKeywordToken && string(data) == "@theme"
-}
+
 
 func detectTheme(stack []string) domain.Theme {
 	for _, s := range stack {

@@ -1,3 +1,4 @@
+// Package tokens converts parsed CSS variables into DTCG design token trees.
 package tokens
 
 import (
@@ -76,7 +77,7 @@ func tokenName(varName string) string {
 	return parts[1]
 }
 
-func buildTree(entries []tokenEntry) interface{} {
+func buildTree(entries []tokenEntry) domain.DTCGGroup {
 	root := make(domain.DTCGGroup)
 
 	for _, e := range entries {
@@ -123,7 +124,7 @@ func insertIntoTree(group domain.DTCGGroup, parts []string, e tokenEntry) {
 	insertIntoTree(subGroup, parts[1:], e)
 }
 
-func flattenTree(entries []tokenEntry) interface{} {
+func flattenTree(entries []tokenEntry) domain.DTCGGroup {
 	root := make(domain.DTCGGroup)
 	for _, e := range entries {
 		name := e.name
@@ -144,27 +145,7 @@ func flattenTree(entries []tokenEntry) interface{} {
 	return root
 }
 
-func anyLeaf(entries []tokenEntry) bool {
-	for _, e := range entries {
-		if strings.Contains(e.name, "-") {
-			return true
-		}
-	}
-	return false
-}
 
-func hasMixedLeafGroup(group domain.DTCGGroup) bool {
-	hasLeaf := false
-	hasChild := false
-	for k := range group {
-		if k == "$value" || k == "$type" || k == "$description" {
-			hasLeaf = true
-		} else if k != "dark" {
-			hasChild = true
-		}
-	}
-	return hasLeaf && hasChild
-}
 
 func buildLeaf(e tokenEntry) domain.DTCGGroup {
 	leaf := make(domain.DTCGGroup)

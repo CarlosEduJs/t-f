@@ -1,0 +1,46 @@
+version: 2
+
+project_name: t-f
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: t-f
+    main: ./cmd/t-f
+    binary: t-f
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w -X t-f/internal/version.Version={{.Version}} -X t-f/internal/version.Commit={{.Commit}} -X t-f/internal/version.Date={{.Date}}
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - id: default
+    format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+
+checksum:
+  disable: false
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"

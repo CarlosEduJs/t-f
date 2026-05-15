@@ -2,3 +2,5 @@
 t-f
 *.json
 !testdata/*.json
+.bin
+dist

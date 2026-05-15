@@ -7,14 +7,14 @@ import (
 	"t-f/internal/domain"
 )
 
-func checkMixed(obj map[string]interface{}, path string, t *testing.T) {
+func checkMixed(obj map[string]any, path string, t *testing.T) {
 	hasLeaf := false
 	hasChild := false
 	for k := range obj {
 		if k == "$value" || k == "$type" || k == "$description" {
 			hasLeaf = true
 		} else if k != "dark" {
-			if _, ok := obj[k].(map[string]interface{}); ok {
+			if _, ok := obj[k].(map[string]any); ok {
 				hasChild = true
 			}
 		}
@@ -23,13 +23,13 @@ func checkMixed(obj map[string]interface{}, path string, t *testing.T) {
 		t.Errorf("MIXED leaf/group at %s: keys=%v", path, keysOf(obj))
 	}
 	for k, v := range obj {
-		if sub, ok := v.(map[string]interface{}); ok {
+		if sub, ok := v.(map[string]any); ok {
 			checkMixed(sub, path+"."+k, t)
 		}
 	}
 }
 
-func keysOf(m map[string]interface{}) []string {
+func keysOf(m map[string]any) []string {
 	ks := make([]string, 0, len(m))
 	for k := range m {
 		ks = append(ks, k)
@@ -37,8 +37,8 @@ func keysOf(m map[string]interface{}) []string {
 	return ks
 }
 
-func getHex(val interface{}) string {
-	m, ok := val.(map[string]interface{})
+func getHex(val any) string {
+	m, ok := val.(map[string]any)
 	if !ok {
 		return ""
 	}
@@ -94,16 +94,16 @@ func TestGenerateMinimal(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
+	var result map[string]any
 	if err := json.Unmarshal(data, &result); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	semantic := result["semantic"].(map[string]interface{})
+	semantic := result["semantic"].(map[string]any)
 	checkMixed(semantic, "semantic", t)
 
-	colors := semantic["color"].(map[string]interface{})
-	primary := colors["primary"].(map[string]interface{})
+	colors := semantic["color"].(map[string]any)
+	primary := colors["primary"].(map[string]any)
 	if primary["$type"] != "color" {
 		t.Errorf("expected color type")
 	}
@@ -124,19 +124,21 @@ func TestGenerateTypography(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
 
-	semantic := result["semantic"].(map[string]interface{})
+	semantic := result["semantic"].(map[string]any)
 	checkMixed(semantic, "semantic", t)
 
-	typo := semantic["typography"].(map[string]interface{})
-	body := typo["body"].(map[string]interface{})
+	typo := semantic["typography"].(map[string]any)
+	body := typo["body"].(map[string]any)
 
 	if body["$type"] != "typography" {
 		t.Errorf("expected typography type, got %v", body["$type"])
 	}
-	val := body["$value"].(map[string]interface{})
+	val := body["$value"].(map[string]any)
 	if val["fontFamily"] != "Inter, sans-serif" {
 		t.Errorf("expected fontFamily")
 	}
@@ -158,17 +160,19 @@ func TestSemanticFirstNaming(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
 
-	semantic := result["semantic"].(map[string]interface{})
+	semantic := result["semantic"].(map[string]any)
 	checkMixed(semantic, "semantic", t)
 
 	if _, hasOther := semantic["other"]; hasOther {
 		t.Errorf("'other' category should not appear; semantic tokens must be inferred by value")
 	}
 
-	colors, hasColor := semantic["color"].(map[string]interface{})
+	colors, hasColor := semantic["color"].(map[string]any)
 	if !hasColor {
 		t.Fatalf("expected 'color' category for semantic-first tokens")
 	}
@@ -179,7 +183,7 @@ func TestSemanticFirstNaming(t *testing.T) {
 		}
 	}
 
-	bg := colors["background"].(map[string]interface{})
+	bg := colors["background"].(map[string]any)
 	if _, hasDark := bg["dark"]; !hasDark {
 		t.Errorf("expected dark variant for background")
 	}
@@ -196,16 +200,18 @@ func TestNoDuplicateEmission(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
-	semantic := result["semantic"].(map[string]interface{})
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	semantic := result["semantic"].(map[string]any)
 	checkMixed(semantic, "semantic", t)
 
 	if _, hasOther := semantic["other"]; hasOther {
 		t.Errorf("no token should appear in 'other' category")
 	}
 
-	colors := semantic["color"].(map[string]interface{})
+	colors := semantic["color"].(map[string]any)
 	if _, ok := colors["background"]; !ok {
 		t.Errorf("background should be in color category")
 	}
@@ -227,12 +233,14 @@ func TestFigmaMode(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
-	semantic := result["semantic"].(map[string]interface{})
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	semantic := result["semantic"].(map[string]any)
 	checkMixed(semantic, "semantic", t)
 
-	colors := semantic["color"].(map[string]interface{})
+	colors := semantic["color"].(map[string]any)
 
 	if _, ok := colors["background"]; !ok {
 		t.Errorf("expected color.background")
@@ -245,7 +253,7 @@ func TestFigmaMode(t *testing.T) {
 	}
 
 	for _, name := range []string{"background", "primary", "primary-dark"} {
-		token := colors[name].(map[string]interface{})
+		token := colors[name].(map[string]any)
 		if len(token) != 2 {
 			t.Errorf("figma token %q should have exactly 2 keys ($type, $value), got %v", name, keysOf(token))
 		}
@@ -270,11 +278,13 @@ func TestDefaultModePreservesOKLCH(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
-	semantic := result["semantic"].(map[string]interface{})
-	colors := semantic["color"].(map[string]interface{})
-	bg := colors["background"].(map[string]interface{})
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	semantic := result["semantic"].(map[string]any)
+	colors := semantic["color"].(map[string]any)
+	bg := colors["background"].(map[string]any)
 
 	if bg["$value"] != "oklch(0.98 0 0)" {
 		t.Errorf("default mode should preserve OKLCH, got %q", bg["$value"])
@@ -294,13 +304,15 @@ func TestNoMixedLeafGroupDefault(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
-	semantic := result["semantic"].(map[string]interface{})
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	semantic := result["semantic"].(map[string]any)
 	checkMixed(semantic, "semantic", t)
 
-	colors := semantic["color"].(map[string]interface{})
-	primary := colors["primary"].(map[string]interface{})
+	colors := semantic["color"].(map[string]any)
+	primary := colors["primary"].(map[string]any)
 
 	if _, ok := primary["$value"]; ok {
 		t.Errorf("primary should NOT have $value when it has children")
@@ -327,12 +339,14 @@ func TestNoMixedLeafGroupFigma(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
-	semantic := result["semantic"].(map[string]interface{})
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	semantic := result["semantic"].(map[string]any)
 	checkMixed(semantic, "semantic", t)
 
-	colors := semantic["color"].(map[string]interface{})
+	colors := semantic["color"].(map[string]any)
 
 	expected := []string{"primary", "primary-dark", "primary-hover", "primary-hover-dark"}
 	for _, name := range expected {
@@ -342,7 +356,7 @@ func TestNoMixedLeafGroupFigma(t *testing.T) {
 	}
 
 	for name, token := range colors {
-		m := token.(map[string]interface{})
+		m := token.(map[string]any)
 		if len(m) != 2 {
 			t.Errorf("figma token %q should have exactly 2 keys ($type, $value), got %v", name, keysOf(m))
 		}
@@ -369,10 +383,12 @@ func TestFigmaDarkTokenFlattening(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
-	semantic := result["semantic"].(map[string]interface{})
-	colors := semantic["color"].(map[string]interface{})
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	semantic := result["semantic"].(map[string]any)
+	colors := semantic["color"].(map[string]any)
 
 	tests := []struct {
 		name     string
@@ -385,7 +401,7 @@ func TestFigmaDarkTokenFlattening(t *testing.T) {
 		{"primary-hover-dark", "#00caff", "color"},
 	}
 	for _, tt := range tests {
-		token, ok := colors[tt.name].(map[string]interface{})
+		token, ok := colors[tt.name].(map[string]any)
 		if !ok {
 			t.Errorf("missing token: %s", tt.name)
 			continue
@@ -412,18 +428,20 @@ func TestFigmaStructuredValues(t *testing.T) {
 		t.Fatalf("Generate error: %v", err)
 	}
 
-	var result map[string]interface{}
-	json.Unmarshal(data, &result)
-	semantic := result["semantic"].(map[string]interface{})
+	var result map[string]any
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	semantic := result["semantic"].(map[string]any)
 
-	colors := semantic["color"].(map[string]interface{})
-	primary := colors["primary"].(map[string]interface{})
-	cv := primary["$value"].(map[string]interface{})
+	colors := semantic["color"].(map[string]any)
+	primary := colors["primary"].(map[string]any)
+	cv := primary["$value"].(map[string]any)
 
 	if cv["colorSpace"] != "srgb" {
 		t.Errorf("expected colorSpace=srgb, got %q", cv["colorSpace"])
 	}
-	comps, ok := cv["components"].([]interface{})
+	comps, ok := cv["components"].([]any)
 	if !ok || len(comps) != 3 {
 		t.Errorf("expected 3 components, got %v", comps)
 	} else {
@@ -438,9 +456,9 @@ func TestFigmaStructuredValues(t *testing.T) {
 		t.Errorf("expected hex #0069c7, got %q", cv["hex"])
 	}
 
-	borders := semantic["borderRadius"].(map[string]interface{})
-	md := borders["md"].(map[string]interface{})
-	dv := md["$value"].(map[string]interface{})
+	borders := semantic["borderRadius"].(map[string]any)
+	md := borders["md"].(map[string]any)
+	dv := md["$value"].(map[string]any)
 
 	val, _ := dv["value"].(float64)
 	if val != 12 {

@@ -2,8 +2,10 @@ package domain
 
 import "fmt"
 
+// TokenType classifies a design token (color, dimension, typography, etc.).
 type TokenType string
 
+// Token type constants for DTCG classification.
 const (
 	TypeColor       TokenType = "color"
 	TypeDimension   TokenType = "dimension"
@@ -17,18 +19,22 @@ const (
 	TypeString      TokenType = "string"
 )
 
+// DTCGToken is a single DTCG-format design token.
 type DTCGToken struct {
-	Value      interface{} `json:"$value"`
-	Type       TokenType   `json:"$type"`
-	Description string     `json:"$description,omitempty"`
+	Value      any       `json:"$value"`
+	Type       TokenType `json:"$type"`
+	Description string    `json:"$description,omitempty"`
 }
 
-type DTCGGroup map[string]interface{}
+// DTCGGroup is a map node in a DTCG token tree.
+type DTCGGroup map[string]any
 
+// DesignTokens is the top-level output structure.
 type DesignTokens struct {
-	Semantic map[string]interface{} `json:"semantic"`
+	Semantic map[string]any `json:"semantic"`
 }
 
+// Categorize determines the category and token type from a CSS variable name.
 func Categorize(name string) (category string, tokenType TokenType) {
 	switch {
 	case matchPrefix(name, "color"):
@@ -72,6 +78,7 @@ func matchPrefix(name, prefix string) bool {
 	return false
 }
 
+// CategorizeByValue infers category and type from the CSS value itself.
 func CategorizeByValue(value string) (category string, tokenType TokenType) {
 	if IsColorValue(value) {
 		return "color", TypeColor
@@ -82,6 +89,8 @@ func CategorizeByValue(value string) (category string, tokenType TokenType) {
 	return "other", TypeString
 }
 
+// InferCategory tries name-based categorization first, then falls back to
+// value-based inference.
 func InferCategory(name, value string) (category string, tokenType TokenType) {
 	cat, ttype := Categorize(name)
 	if cat != "other" {
@@ -90,6 +99,7 @@ func InferCategory(name, value string) (category string, tokenType TokenType) {
 	return CategorizeByValue(value)
 }
 
+// TokenName strips leading dashes and re-prefixes with "--".
 func TokenName(varName string) string {
 	cleaned := varName
 	if len(cleaned) > 0 && cleaned[0] == '-' {

@@ -3,27 +3,31 @@ package tokens
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"t-f/internal/domain"
 )
 
+// Generator converts CSS variables into DTCG design tokens.
 type Generator struct {
-	RemBase  float64
+	RemBase   float64
 	FigmaMode bool
 }
 
+// NewGenerator returns a Generator with sensible defaults (rem base = 16).
 func NewGenerator() *Generator {
 	return &Generator{RemBase: 16}
 }
 
+// Generate produces a DTCG-formatted JSON byte slice from the given variables.
 func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 	themed := splitByTheme(vars)
 	resolved := resolveAll(themed)
 
 	groups := categorizeAndGroup(resolved)
 	output := domain.DesignTokens{
-		Semantic: make(map[string]interface{}),
+		Semantic: make(map[string]any),
 	}
 
 	typographyGroups := make(map[string]map[string]string)
@@ -58,7 +62,7 @@ func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 	return json.MarshalIndent(output, "", "  ")
 }
 
-func convertToFigma(semantic map[string]interface{}) {
+func convertToFigma(semantic map[string]any) {
 	for _, node := range semantic {
 		if group, ok := node.(domain.DTCGGroup); ok {
 			convertNode(group)
@@ -79,19 +83,19 @@ func convertNode(node domain.DTCGGroup) {
 			case domain.TypeColor:
 				hex := domain.ConvertColorToHEX(str)
 				comps := domain.HexToComponents(hex)
-				node[key] = map[string]interface{}{
-					"colorSpace": "srgb",
-					"components": comps,
-					"hex":        hex,
+				node[key] = domain.FigmaColorValue{
+					ColorSpace: "srgb",
+					Components: comps,
+					Hex:        hex,
 				}
 			case domain.TypeDimension:
 				v, unit := domain.ParseDimension(str)
 				if unit == "" {
 					unit = "px"
 				}
-				node[key] = map[string]interface{}{
-					"value": v,
-					"unit":  unit,
+				node[key] = domain.FigmaDimensionValue{
+					Value: v,
+					Unit:  unit,
 				}
 			}
 		} else if key == "$type" || key == "$description" {
@@ -200,9 +204,10 @@ func evalCalc(value string) string {
 		depth := 1
 		pos := start + 5
 		for depth > 0 && pos < len(current) {
-			if current[pos] == '(' {
+			switch current[pos] {
+			case '(':
 				depth++
-			} else if current[pos] == ')' {
+			case ')':
 				depth--
 			}
 			pos++
@@ -214,8 +219,6 @@ func evalCalc(value string) string {
 			a, aUnit := splitNumber(parts[0])
 			op := parts[1]
 			b, bUnit := splitNumber(parts[2])
-			_ = aUnit
-			_ = bUnit
 
 			var result float64
 			unit := bUnit
@@ -289,12 +292,10 @@ func splitNumber(s string) (float64, string) {
 		break
 	}
 	if unitStart == -1 {
-		v := 0.0
-		fmt.Sscanf(s, "%f", &v)
+		v, _ := strconv.ParseFloat(s, 64)
 		return v, ""
 	}
-	v := 0.0
-	fmt.Sscanf(s[:unitStart], "%f", &v)
+	v, _ := strconv.ParseFloat(s[:unitStart], 64)
 	return v, s[unitStart:]
 }
 
@@ -326,8 +327,7 @@ func remToPx(value string, base float64) string {
 		}
 		if start < idx {
 			numStr := result[start:idx]
-			var v float64
-			fmt.Sscanf(numStr, "%f", &v)
+			v, _ := strconv.ParseFloat(numStr, 64)
 			px := v * base
 			replacement := ""
 			if px == float64(int64(px)) {
@@ -383,16 +383,27 @@ func collectTypography(entries []tokenEntry, groups map[string]map[string]string
 }
 
 func buildTypographyToken(tree domain.DTCGGroup, name string, props map[string]string) {
-	composite := make(map[string]interface{})
+	var composite domain.TypographyValue
 
 	for _, key := range []string{"fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing"} {
 		propName := toProp(key)
 		if v, ok := props[propName]; ok {
-			composite[key] = v
+			switch key {
+			case "fontFamily":
+				composite.FontFamily = v
+			case "fontSize":
+				composite.FontSize = v
+			case "fontWeight":
+				composite.FontWeight = v
+			case "lineHeight":
+				composite.LineHeight = v
+			case "letterSpacing":
+				composite.LetterSpacing = v
+			}
 		}
 	}
 
-	if len(composite) == 0 {
+	if composite == (domain.TypographyValue{}) {
 		return
 	}
 
