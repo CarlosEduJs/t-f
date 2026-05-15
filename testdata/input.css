@@ -1,0 +1,74 @@
+:root {
+  --color-primary: oklch(0.5 0.2 240);
+  --color-primary-hover: oklch(0.45 0.22 240);
+  --color-secondary: oklch(0.6 0.18 180);
+  --color-background: oklch(0.98 0 0);
+  --color-text: oklch(0.15 0.02 260);
+  --color-text-muted: oklch(0.45 0.03 260);
+  --color-border: oklch(0.85 0.02 260);
+  --color-success: oklch(0.55 0.2 150);
+  --color-error: oklch(0.55 0.25 30);
+  --color-warning: oklch(0.65 0.2 85);
+  --color-info: oklch(0.6 0.15 240);
+
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+
+  --font-family-body: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-size-body: 1rem;
+  --font-weight-body: 400;
+  --line-height-body: 1.5;
+  --letter-spacing-body: 0em;
+
+  --font-family-heading: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-size-heading: 1.5rem;
+  --font-weight-heading: 700;
+  --line-height-heading: 1.25;
+  --letter-spacing-heading: -0.025em;
+
+  --font-family-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --shadow-sm: 0 1px 2px 0 oklch(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px oklch(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px oklch(0 0 0 / 0.1);
+
+  --color-surface: var(--color-background);
+  --spacing-gap: calc(4 * var(--spacing-md));
+}
+
+.dark {
+  --color-primary: oklch(0.65 0.22 240);
+  --color-primary-hover: oklch(0.7 0.2 240);
+  --color-secondary: oklch(0.7 0.16 180);
+  --color-background: oklch(0.12 0.02 260);
+  --color-text: oklch(0.92 0.01 260);
+  --color-text-muted: oklch(0.6 0.02 260);
+  --color-border: oklch(0.3 0.02 260);
+  --color-accent: oklch(0.8 0.2 280);
+  --radius-card: 1rem;
+}
+
+@theme {
+  --color-accent: oklch(0.55 0.25 280);
+  --spacing-page: 1.5rem;
+  --radius-card: 0.75rem;
+}
