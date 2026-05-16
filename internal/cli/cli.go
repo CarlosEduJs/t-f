@@ -15,6 +15,14 @@ import (
 
 // Run executes the CLI logic and returns the exit code.
 func Run(args []string, stdout, stderr io.Writer) int {
+	if err := execute(args, stdout, stderr); err != nil {
+		fmt.Fprintf(stderr, "Error: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func execute(args []string, stdout, stderr io.Writer) error {
 	flags := flag.NewFlagSet("t-f", flag.ContinueOnError)
 	flags.SetOutput(stderr)
 
@@ -22,17 +30,16 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	showVersion := flags.Bool("version", false, "show version information")
 
 	if err := flags.Parse(args); err != nil {
-		return 1
+		return err
 	}
 
 	if *showVersion {
 		fmt.Fprintf(stdout, "t-f version %s (commit: %s, date: %s)\n", version.Version, version.Commit, version.Date)
-		return 0
+		return nil
 	}
 
 	if flags.NArg() < 2 {
-		fmt.Fprintf(stderr, "Usage: t-f [--figma] input.css output.json\n")
-		return 1
+		return fmt.Errorf("usage: t-f [--figma] input.css output.json")
 	}
 
 	inputPath := flags.Arg(0)
@@ -40,8 +47,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 
 	f, err := os.Open(inputPath)
 	if err != nil {
-		fmt.Fprintf(stderr, "Error opening input: %v\n", err)
-		return 1
+		return fmt.Errorf("opening input file %q: %w", inputPath, err)
 	}
 	defer func() {
 		if cerr := f.Close(); cerr != nil {
@@ -52,8 +58,7 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	parser := cssreader.New(f)
 	vars, err := parser.Parse()
 	if err != nil {
-		fmt.Fprintf(stderr, "Error parsing CSS: %v\n", err)
-		return 1
+		return fmt.Errorf("parsing CSS: %w", err)
 	}
 
 	gen := tokens.NewGenerator()
@@ -61,27 +66,23 @@ func Run(args []string, stdout, stderr io.Writer) int {
 
 	data, err := gen.Generate(vars)
 	if err != nil {
-		fmt.Fprintf(stderr, "Error generating tokens: %v\n", err)
-		return 1
+		return fmt.Errorf("generating tokens: %w", err)
 	}
 
 	var pretty any
 	if err := json.Unmarshal(data, &pretty); err != nil {
-		fmt.Fprintf(stderr, "Error formatting JSON: %v\n", err)
-		return 1
+		return fmt.Errorf("formatting JSON: %w", err)
 	}
 
 	clean, err := json.MarshalIndent(pretty, "", "  ")
 	if err != nil {
-		fmt.Fprintf(stderr, "Error marshaling JSON: %v\n", err)
-		return 1
+		return fmt.Errorf("marshaling JSON: %w", err)
 	}
 
 	if err := os.WriteFile(outputPath, clean, 0644); err != nil {
-		fmt.Fprintf(stderr, "Error writing output: %v\n", err)
-		return 1
+		return fmt.Errorf("writing output file %q: %w", outputPath, err)
 	}
 
 	fmt.Fprintf(stdout, "Wrote %d variables to %s\n", len(vars), outputPath)
-	return 0
+	return nil
 }

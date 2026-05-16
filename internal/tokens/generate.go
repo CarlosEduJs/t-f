@@ -23,7 +23,7 @@ func NewGenerator() *Generator {
 // Generate produces a DTCG-formatted JSON byte slice from the given variables.
 func (g *Generator) Generate(vars []domain.Variable) ([]byte, error) {
 	themed := splitByTheme(vars)
-	resolved := resolveAll(themed)
+	resolved := resolveAll(themed, g.RemBase)
 
 	groups := categorizeAndGroup(resolved)
 	output := domain.DesignTokens{
@@ -124,7 +124,7 @@ func splitByTheme(vars []domain.Variable) map[string]map[string]string {
 	return result
 }
 
-func resolveAll(themed map[string]map[string]string) map[string]map[string]string {
+func resolveAll(themed map[string]map[string]string, remBase float64) map[string]map[string]string {
 	result := make(map[string]map[string]string)
 
 	for theme, vars := range themed {
@@ -145,8 +145,8 @@ func resolveAll(themed map[string]map[string]string) map[string]map[string]strin
 
 		for k, v := range vars {
 			aliased := resolveAlias(k, v, scope)
-			remmed := remToPx(aliased, 16)
-			calcResolved := evalCalc(remmed)
+			remmed := remToPx(aliased, remBase)
+			calcResolved := evalCalc(remmed, remBase)
 			resolved[k] = calcResolved
 		}
 
@@ -187,7 +187,7 @@ func resolveAlias(name, value string, allVars map[string]string) string {
 	return current
 }
 
-func evalCalc(value string) string {
+func evalCalc(value string, remBase float64) string {
 	if !strings.Contains(value, "calc(") {
 		return value
 	}
@@ -228,10 +228,10 @@ func evalCalc(value string) string {
 
 			switch op {
 			case "+":
-				result = toPxNum(a, aUnit) + toPxNum(b, bUnit)
+				result = toPxNum(a, aUnit, remBase) + toPxNum(b, bUnit, remBase)
 				unit = chooseUnit(aUnit, bUnit)
 			case "-":
-				result = toPxNum(a, aUnit) - toPxNum(b, bUnit)
+				result = toPxNum(a, aUnit, remBase) - toPxNum(b, bUnit, remBase)
 				unit = chooseUnit(aUnit, bUnit)
 			case "*":
 				result = a * b
@@ -242,7 +242,7 @@ func evalCalc(value string) string {
 			}
 
 			if unit == "rem" {
-				result *= 16
+				result *= remBase
 				unit = "px"
 			}
 			current = current[:start] + fmt.Sprintf("%.0f%s", result, unit) + current[pos:]
@@ -256,7 +256,7 @@ func evalCalc(value string) string {
 				unit = bUnit
 			}
 			if unit == "rem" {
-				result *= 16
+				result *= remBase
 				unit = "px"
 			}
 			current = current[:start] + fmt.Sprintf("%.0f%s", result, unit) + current[pos:]
@@ -299,9 +299,9 @@ func splitNumber(s string) (float64, string) {
 	return v, s[unitStart:]
 }
 
-func toPxNum(v float64, unit string) float64 {
+func toPxNum(v float64, unit string, remBase float64) float64 {
 	if unit == "rem" {
-		return v * 16
+		return v * remBase
 	}
 	return v
 }
@@ -343,40 +343,41 @@ func remToPx(value string, base float64) string {
 	return result
 }
 
+func pickValue(e tokenEntry) string {
+	if e.darkVal != "" {
+		return e.darkVal
+	}
+	return e.lightVal
+}
+
 func collectTypography(entries []tokenEntry, groups map[string]map[string]string) {
 	if groups == nil {
 		return
 	}
+	prefixes := []string{"family-", "size-", "weight-", "height-", "spacing-"}
+	suffixes := []string{"-family", "-size", "-weight", "-height", "-spacing"}
+
 	for _, e := range entries {
 		tn := e.name
-		for _, prefix := range []string{"family-", "size-", "weight-", "height-", "spacing-"} {
+		for _, prefix := range prefixes {
 			if strings.HasPrefix(tn, prefix) {
 				baseName := tn[len(prefix):]
 				propName := strings.TrimSuffix(prefix, "-")
 				if groups[baseName] == nil {
 					groups[baseName] = make(map[string]string)
 				}
-
-				val := e.lightVal
-				if e.darkVal != "" {
-					val = e.darkVal
-				}
-				groups[baseName][propName] = val
+				groups[baseName][propName] = pickValue(e)
 			}
 		}
 
-		for _, suffix := range []string{"-family", "-size", "-weight", "-height", "-spacing"} {
+		for _, suffix := range suffixes {
 			if strings.HasSuffix(tn, suffix) {
 				baseName := tn[:len(tn)-len(suffix)]
 				propName := strings.TrimPrefix(suffix, "-")
 				if groups[baseName] == nil {
 					groups[baseName] = make(map[string]string)
 				}
-				val := e.lightVal
-				if e.darkVal != "" {
-					val = e.darkVal
-				}
-				groups[baseName][propName] = val
+				groups[baseName][propName] = pickValue(e)
 			}
 		}
 	}
